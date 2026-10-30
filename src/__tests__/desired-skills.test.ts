@@ -141,7 +141,7 @@ describe('resolveDesiredSkills', () => {
       await resolveDesiredSkills(teamConfig, localConfig, null);
 
       expect(warn.mock.calls.map(([message]) => message)).toEqual([
-        'Skipped skills/dev/release: the shared skills/release has the same name. Give this member a role that receives dev to get it instead.',
+        'Skipped skills/dev/release: the shared skills/release has the same name. To get it, ask the team admin for a role that receives dev, then run teamai roles set <role>.',
       ]);
     });
 

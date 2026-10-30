@@ -32,7 +32,7 @@ it('delivers the shared skill over a namespace skill of the same name and names 
     const output = pull.stdout + pull.stderr;
     expect(pull.status, output).toBe(0);
     expect(fs.readFileSync(path.join(home, '.claude', 'skills', 'release', 'SKILL.md'), 'utf8')).toContain('Shared release skill.');
-    expect(output.match(/Skipped skills\/web\/release: the shared skills\/release has the same name\. Give this member a role that receives web to get it instead\./g)).toHaveLength(1);
+    expect(output.match(/Skipped skills\/web\/release: the shared skills\/release has the same name\. To get it, ask the team admin for a role that receives web, then run teamai roles set <role>\./g)).toHaveLength(1);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

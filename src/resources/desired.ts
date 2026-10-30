@@ -206,7 +206,7 @@ function preferSharedSkills(items: ResourceItem[]): ResourceItem[] {
   const shared = new Map(items.flatMap((item) => (item.namespace ? [] : [[item.name, item] as const])));
   return items.filter((item) => {
     const kept = item.namespace ? shared.get(item.name) : undefined;
-    if (kept) warnOnce(`Skipped ${item.relativePath}: the shared ${kept.relativePath} has the same name. Give this member a role that receives ${item.namespace} to get it instead.`);
+    if (kept) warnOnce(`Skipped ${item.relativePath}: the shared ${kept.relativePath} has the same name. To get it, ask the team admin for a role that receives ${item.namespace}, then run teamai roles set <role>.`);
     return !kept;
   });
 }

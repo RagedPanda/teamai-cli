@@ -204,7 +204,9 @@ files; two namespace rules or claudemd files of one name are both delivered.
 A replacement must be usable to replace anything: a skill directory needs its
 `SKILL.md` (pull names one without it), and while an agent file does not parse
 the root agent stays installed. `teamai doctor` lists each replacement as a note. Teams without roles or
-projects are unaffected.
+projects are unaffected: a member with no role gets the root skill, and pull
+names the namespace skill of the same name it skipped (see
+`docs/guide/distribution.md`).
 
 Docs have no override. A top-level `docs/<ns>/` that any role or project lists
 under `resources.docs` reaches only members with that namespace active; a
