@@ -1,9 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fse from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 
 import { describeDeliveryConflict, resolveDesiredSkills, type DesiredSkills } from '../resources/desired.js';
+import { log } from '../utils/logger.js';
+import { resetWarnOnce } from '../utils/warn-once.js';
 
 /** The resolved skills, failing the test on a namespace collision. */
 function resolved(result: Awaited<ReturnType<typeof resolveDesiredSkills>>): DesiredSkills {
@@ -98,6 +100,56 @@ describe('resolveDesiredSkills', () => {
 
     expect(items.map((i) => i.name).sort())
       .toEqual(['backend-skill', 'frontend-skill', 'shared-skill']);
+  });
+
+  describe('a shared skill and a namespace skill with the same name, without roles (#1577)', () => {
+    beforeEach(async () => {
+      await fse.ensureDir(path.join(repoPath, 'skills', 'release'));
+      await fse.writeFile(path.join(repoPath, 'skills', 'release', 'SKILL.md'), '---\nname: release\ndescription: shared\n---\n');
+      await writeSkill('dev', 'release');
+      resetWarnOnce();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    /** List every directory in the given name order, as different filesystems do. */
+    function listDirectories(order: 'ascending' | 'descending'): void {
+      const readdir = fse.readdir.bind(fse) as (dir: string, options: unknown) => Promise<{ name: string }[]>;
+      vi.spyOn(fse, 'readdir').mockImplementation((async (dir: string, options: unknown) => {
+        const entries = await readdir(dir, options);
+        const sorted = [...entries].sort((a, b) => a.name.localeCompare(b.name));
+        return order === 'ascending' ? sorted : sorted.toReversed();
+      }) as never);
+    }
+
+    it.each(['ascending', 'descending'] as const)('delivers the shared skill when directories are listed %s', async (order) => {
+      listDirectories(order);
+
+      const { items } = resolved(await resolveDesiredSkills(teamConfig, localConfig, null));
+
+      expect(items.filter((i) => i.name === 'release').map((i) => i.relativePath)).toEqual(['skills/release']);
+      expect(items.map((i) => i.name).sort())
+        .toEqual(['backend-skill', 'frontend-skill', 'release', 'shared-skill']);
+    });
+
+    it('names the skipped copy and how to get it, once', async () => {
+      const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+
+      await resolveDesiredSkills(teamConfig, localConfig, null);
+      await resolveDesiredSkills(teamConfig, localConfig, null);
+
+      expect(warn.mock.calls.map(([message]) => message)).toEqual([
+        'Skipped skills/dev/release: the shared skills/release has the same name. Give this member a role that receives dev to get it instead.',
+      ]);
+    });
+
+    it('still delivers the namespace skill to a member whose role receives its namespace (#707)', async () => {
+      const { items } = resolved(await resolveDesiredSkills(teamConfig, localConfig, rolesOver(['dev'])));
+
+      expect(items.filter((i) => i.name === 'release').map((i) => i.relativePath)).toEqual(['skills/dev/release']);
+    });
   });
 
   it('reports the whole team repo separately, so cleanup knows what it may prune', async () => {

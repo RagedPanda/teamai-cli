@@ -196,6 +196,21 @@ async function withSkillMd(items: ResourceItem[]): Promise<ResourceItem[]> {
   return skills;
 }
 
+/**
+ * Without roles or projects every namespace is scanned, so a namespace skill
+ * can share its name with a shared one (#1577). The shared skill wins, whatever
+ * order the directories are listed in: namespaces are opted into through roles
+ * and projects. Each skipped copy is named once a run.
+ */
+function preferSharedSkills(items: ResourceItem[]): ResourceItem[] {
+  const shared = new Map(items.flatMap((item) => (item.namespace ? [] : [[item.name, item] as const])));
+  return items.filter((item) => {
+    const kept = item.namespace ? shared.get(item.name) : undefined;
+    if (kept) warnOnce(`Skipped ${item.relativePath}: the shared ${kept.relativePath} has the same name. Give this member a role that receives ${item.namespace} to get it instead.`);
+    return !kept;
+  });
+}
+
 export async function scanRoleAwareSkills(
   localConfig: LocalConfig,
   namespaces: ResourceNamespaces,
@@ -270,7 +285,7 @@ export async function resolveDesiredSkills(
     if (scanned.kind === 'conflict') return scanned;
     directoryItems = scanned.items;
   } else {
-    directoryItems = await withSkillMd(await handler.scanTeamForPull(teamConfig, localConfig));
+    directoryItems = preferSharedSkills(await withSkillMd(await handler.scanTeamForPull(teamConfig, localConfig)));
   }
 
   const teamItems = await withSkillMd(await handler.scanTeamForPull(teamConfig, localConfig));
